@@ -1,5 +1,13 @@
 
-call apoc.periodic.iterate('match (n) return n', 'detach delete n', {batchSize:500});
+:use system;
+
+drop database gtfsuk if exists;
+create database gtfsuk;
+
+:use gtfsuk;
+
+// run statements from schema.cypher
+
 
 load csv with headers from
 'file:///agency.txt' as row
@@ -48,7 +56,9 @@ load csv with headers from
 'file:///stop_times.txt' as row
 match (t:Trip {id: row.trip_id}), (s:Stop {id: row.stop_id})
 create (t)<-[:BELONGS_TO]-(st:StopTime {arrivalTime: row.arrival_time, departureTime: row.departure_time,
-                    stopSequence: toInteger(row.stop_sequence)})-[:STOPS_AT]->(s);
+    arrivalOffset: duration({hours:toInteger(split(row.arrival_time, ':')[0]), minutes:toInteger(split(row.arrival_time, ':')[1]), seconds:toInteger(split(row.arrival_time, ':')[2])}),
+    departureOffset: duration({hours:toInteger(split(row.departure_time, ':')[0]), minutes:toInteger(split(row.departure_time, ':')[1]), seconds:toInteger(split(row.departure_time, ':')[2])}),
+    stopSequence: toInteger(row.stop_sequence)})-[:STOPS_AT]->(s);
 
 // add transfer times
 load csv with headers from
@@ -67,3 +77,9 @@ merge (curr)-[:NEXT_STOP]->(next)', {batchmode: "BATCH", parallel:true, parallel
 match (t:Trip) where t.id = "339740" with t limit 1
 match p=(t)<-[:BELONGS_TO]-(st)-[:STOPS_AT]->(s), p2=(st)-[:NEXT_STOP]->(st2)
 return p, p2
+
+match (start:Stop)<-[:STOPS_AT]-(st)-[:BELONGS_TO]->(t)
+with st where start.name = 'Aberdeen' and t.saturday = true and st.departureOffset.seconds > duration({hours:7}).seconds
+match (dest:Stop) where dest.name = 'Penzance' with dest, st
+match p=(st)-[:NEXT_STOP*]->()-->(dest:Stop)
+return p
