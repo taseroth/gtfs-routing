@@ -25,7 +25,7 @@ public class TraversalDemo {
                     .uniqueness(NODE_GLOBAL)
                     .depthFirst()
                     .expand(new AllExpander())
-                    .evaluator(Evaluators.includeIfAcceptedByAny(new PathLogger(), new GreenEvaluator(minimumGreen)))
+                    .evaluator(Evaluators.includeIfAcceptedByAny(new LoggingEvaluators(), new GreenEvaluator(minimumGreen)))
                     //.evaluator(new GreenEvaluator(minimumGreen))
                     ;
 
@@ -50,19 +50,23 @@ public class TraversalDemo {
 
         @Override
         public Evaluation evaluate(Path path) {
+
             if (path.endNode().hasLabel(Label.label("Green"))) {
                 greenFound++;
                 if (enoughGreenFound()) {
-                    System.out.println("pruning");
-                    return Evaluation.INCLUDE_AND_PRUNE;
+                    return Evaluation.EXCLUDE_AND_PRUNE;
+                } else {
+                    return Evaluation.INCLUDE_AND_CONTINUE;
                 }
-                return Evaluation.INCLUDE_AND_CONTINUE;
+            } else if (enoughGreenFound()) {
+                return Evaluation.EXCLUDE_AND_PRUNE;
+            } else{
+                return  Evaluation.EXCLUDE_AND_CONTINUE;
             }
-            return  Evaluation.EXCLUDE_AND_CONTINUE;
         }
 
         private boolean enoughGreenFound() {
-            return greenFound >= minimumGreen;
+            return greenFound > minimumGreen;
         }
     }
 
@@ -71,6 +75,7 @@ public class TraversalDemo {
 
         @Override
         public Iterable<Relationship> expand(Path path, BranchState<Integer> state) {
+            PathLogger.logPath(path, "exp");
             // expand along all relationships
             // there is a ALLExpander provided, this is here to show the interface
             return path.endNode().getRelationships(Direction.OUTGOING);
@@ -82,13 +87,10 @@ public class TraversalDemo {
         }
     }
 
-    /**
-     * Miss-using an evaluator to log out the path being evaluated.
-     */
-    private static class PathLogger implements Evaluator {
+    public static class PathLogger {
 
-        @Override
-        public Evaluation evaluate(Path path) {
+        public static void logPath(Path path, String scope) {
+            System.out.print(scope + "\t: ");
             path.forEach(entry -> {
                 if (entry instanceof Node) {
                     System.out.printf("(%s)", entry.getProperty("name"));
@@ -97,6 +99,17 @@ public class TraversalDemo {
                 }
             });
             System.out.println();
+        }
+    }
+
+    /**
+     * Miss-using an evaluator to log out the path being evaluated.
+     */
+    private static class LoggingEvaluators implements Evaluator {
+
+        @Override
+        public Evaluation evaluate(Path path) {
+            PathLogger.logPath(path, "eva");
             return Evaluation.EXCLUDE_AND_CONTINUE;
         }
     }

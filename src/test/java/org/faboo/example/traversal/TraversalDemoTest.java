@@ -41,7 +41,7 @@ class TraversalDemoTest {
                     .collect(Collectors.toList());
             System.out.println(names);
             assertThat(names.size()).isEqualTo(2);
-            assertThat(names).contains("B2", "C1", "C2", "C3");
+            assertThat(names).allSatisfy(name -> assertThat(List.of("B2", "C1", "C2", "C3")).contains(name));
         }
     }
 }
