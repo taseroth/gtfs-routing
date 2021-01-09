@@ -72,7 +72,6 @@ public class TraversalDemo {
 
     public static class AllExpander implements PathExpander<Integer> {
 
-
         @Override
         public Iterable<Relationship> expand(Path path, BranchState<Integer> state) {
             PathLogger.logPath(path, "exp");
