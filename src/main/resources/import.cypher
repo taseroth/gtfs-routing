@@ -48,6 +48,14 @@ match (t:Trip) where t.serviceId = row.service_id
   t.friday = row.friday starts with '1',
   t.saturday = row.saturday starts with '1',
   t.sunday = row.sunday starts with '1';
+match (t:Trip) where t.monday = true set t:RUNS_1;
+match (t:Trip) where t.tuesday = true set t:RUNS_2;
+match (t:Trip) where t.wednesday = true set t:RUNS_3;
+match (t:Trip) where t.thursday = true set t:RUNS_4;
+match (t:Trip) where t.friday = true set t:RUNS_5;
+match (t:Trip) where t.saturday = true set t:RUNS_6;
+match (t:Trip) where t.sunday = true set t:RUNS_7;
+match (t:Trip) set t.monday = null, t.tuesday = null, t.wednesday = null, t.wednesday = null, t.friday = null, t.saturday = null, t.sunday = null;
 
 //add the StopTimes
 :auto
@@ -63,7 +71,7 @@ create (t)<-[:BELONGS_TO]-(st:StopTime {arrivalTime: row.arrival_time, departure
 // add transfer times
 load csv with headers from
 'file:///transfers.txt' as row
-match (s:Stop {id:row.from_stop_id}) set s.minTransferTime = toInteger(row.min_transfer_time);
+match (s:Stop {id:row.from_stop_id}) set s.minTransferTime = duration({seconds: toInteger(coalesce(row.min_transfer_time, "0"))});
 
 //connect the StopTime sequences
 call apoc.periodic.iterate('match (t:Trip) return t',

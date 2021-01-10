@@ -1,5 +1,6 @@
-package org.faboo.example.routing;
+package org.faboo.example.routing.evaluator;
 
+import org.faboo.example.routing.Consts;
 import org.neo4j.graphdb.Direction;
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.Path;
@@ -13,6 +14,7 @@ public class DestinationEvaluator implements Evaluator, PathEvaluator<Integer> {
 
     private final Node destination;
     private final Log log;
+    private long evaluationCount;
 
     public DestinationEvaluator(Node destinationNode, Log log) {
         destination = destinationNode;
@@ -21,10 +23,16 @@ public class DestinationEvaluator implements Evaluator, PathEvaluator<Integer> {
 
     @Override
     public Evaluation evaluate(Path path, BranchState state) {
-        final Node station = path.endNode().getSingleRelationship(Consts.REL_STOPS, Direction.OUTGOING).getEndNode();
-        log.info("evaluating:" + station.getProperty("name"));
-        if (destination.equals(station)) {
-            return Evaluation.INCLUDE_AND_PRUNE;
+        evaluationCount++;
+        // endNode can either be a :StopTime or a :Stop
+        // in case of stop, we should have evaluated it in a previous step
+        final Node endNode = path.endNode();
+        if (endNode.hasLabel(Consts.LABEL_STOP_TIME)) {
+            final Node station = endNode.getSingleRelationship(Consts.REL_STOPS, Direction.OUTGOING).getEndNode();
+            log.info("evaluating:" + station.getProperty(Consts.PROP_NAME));
+            if (destination.equals(station)) {
+                return Evaluation.INCLUDE_AND_PRUNE;
+            }
         }
         return Evaluation.EXCLUDE_AND_CONTINUE;
     }
@@ -32,5 +40,9 @@ public class DestinationEvaluator implements Evaluator, PathEvaluator<Integer> {
     @Override
     public Evaluation evaluate(Path path) {
         return null;
+    }
+
+    public long getEvaluationCount() {
+        return evaluationCount;
     }
 }
