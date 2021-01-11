@@ -17,7 +17,7 @@ public class RunsOnFilter implements StopsAtFilter {
 
     @Override
     public boolean test(Relationship relationship, TraversalState state) {
-        log.info("testing %s with state:%s", relationship, state);
+        //log.info("testing %s with state:%s", relationship, state);
         return relationship.getStartNode() // :StopTime
                 .getSingleRelationship(Consts.REL_BELONGS, Direction.OUTGOING).getEndNode() // :Trip
                 .getSingleRelationship(Consts.REL_USES, Direction.OUTGOING).getEndNode() // :Route

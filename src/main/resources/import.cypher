@@ -91,3 +91,5 @@ with st where start.name = 'Aberdeen' and t.saturday = true and st.departureOffs
 match (dest:Stop) where dest.name = 'Penzance' with dest, st
 match p=(st)-[:NEXT_STOP*]->()-->(dest:Stop)
 return p
+
+call journey.find('ABD', 'PNZ', localdatetime('2021-01-09T08:00:00')) yield path return path

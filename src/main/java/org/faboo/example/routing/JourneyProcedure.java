@@ -44,12 +44,12 @@ public class JourneyProcedure {
             log.info("** starting new search from <%s> to <%s> at <%s>", startId, destinationId, startTime);
             final List<Node> startNodes = findStartNodes(startId, startTime);
 
-            final Node destinationStop = db.beginTx().findNode(Consts.LABEL_STOP, Consts.PROP_ID, destinationId);
+            final Node destinationStop =findDestinationNode(destinationId);
 
             final TraversalState initialState = new TraversalState(startTime, destinationStop);
 
             final JourneyExpander expander = new JourneyExpander(log, buildFilters());
-            DestinationEvaluator evaluator = new DestinationEvaluator(findDestinationNode(destinationId), log);
+            DestinationEvaluator evaluator = new DestinationEvaluator(initialState, log);
             final TraversalDescription traverseDescription = db.beginTx().traversalDescription()
                     .uniqueness(NODE_GLOBAL)
                     .depthFirst()
@@ -65,8 +65,8 @@ public class JourneyProcedure {
                     .stream(traverser.spliterator(), false)
                     .map(PathWrapper::new);
 
-            log.info("performed evaluations:" + evaluator.getEvaluationCount());
-
+            log.info("performed evaluations:" + initialState.getEvaluationCount());
+            initialState.getPathsFound().forEach(p -> log.info(p.toString()));
             return stream;
         } catch (NullPointerException e) {
             log.error("error during traversal", e);

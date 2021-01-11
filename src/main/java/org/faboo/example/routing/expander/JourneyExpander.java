@@ -22,7 +22,7 @@ public class JourneyExpander implements PathExpander<TraversalState> {
 
     @Override
     public Iterable<Relationship> expand(Path path, BranchState<TraversalState> state) {
-        log.info("expanding: " + path);
+        //log.debug("expanding: " + path);
         // endNode can either be
         // :StopTime : expand along the same trip, using the NEXT_STOP rel
         // :STOP find the next possible / likely trips to hop on. This is where all the magic will happen.
@@ -47,7 +47,7 @@ public class JourneyExpander implements PathExpander<TraversalState> {
         } else if (endNode.hasLabel(Consts.LABEL_STOP)) {
             result.addAll(findInterchangeTrips(endNode, state.getState()));
         }
-        log.info("adding " + result.size() + " to expansion list");
+        //**log.debug("adding " + result.size() + " to expansion list");
         return result;
     }
 
