@@ -28,7 +28,7 @@ class TraversalDemoTest {
     }
 
     @Test
-    void name() {
+    void mustOnlyFind2() {
 
         try(
                 Driver driver = GraphDatabase.driver(embeddedDatabaseServer.boltURI(), driverConfig);

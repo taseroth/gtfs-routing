@@ -4,6 +4,7 @@ import org.neo4j.graphdb.*;
 import org.neo4j.graphdb.traversal.*;
 import org.neo4j.procedure.*;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -24,7 +25,7 @@ public class TraversalDemo {
             final TraversalDescription traverseDescription = db.beginTx().traversalDescription()
                     .uniqueness(NODE_GLOBAL)
                     .depthFirst()
-                    .expand(new AllExpander(), new InitialBranchState.State<>("start", "start"))
+                    .expand(new AllExpander(), new InitialBranchState.State<>(new ArrayList<>(), new ArrayList<>()))
                     .evaluator(Evaluators.includeIfAcceptedByAny(new LoggingEvaluators(), new GreenEvaluator(minimumGreen)))
                     //.evaluator(new GreenEvaluator(minimumGreen))
                     ;
@@ -75,26 +76,28 @@ public class TraversalDemo {
         }
     }
 
-    public static class AllExpander implements PathExpander<String> {
+    public static class AllExpander implements PathExpander<List<String>> {
 
         @Override
-        public Iterable<Relationship> expand(Path path, BranchState<String> branchState) {
+        public Iterable<Relationship> expand(Path path, BranchState<List<String>> branchState) {
             PathLogger.logPath(path, "exp", branchState);
             // expand along all relationships
             // there is a ALLExpander provided, this is here to show the interface
-            branchState.setState((String)path.endNode().getProperty("name"));
+            final ArrayList<String> newState = new ArrayList<>(branchState.getState());
+            newState.add((String)path.endNode().getProperty("name"));
+            branchState.setState(newState);
             return path.endNode().getRelationships(Direction.OUTGOING);
         }
 
         @Override
-        public PathExpander<String> reverse() {
+        public PathExpander<List<String>> reverse() {
             return null;
         }
     }
 
     public static class PathLogger {
 
-        public static void logPath(Path path, String scope, BranchState<String> branchState) {
+        public static void logPath(Path path, String scope, BranchState<List<String>> branchState) {
             System.out.print(scope + "\t: " + branchState.getState() + " \t:");
             path.forEach(entry -> {
                 if (entry instanceof Node) {
@@ -110,10 +113,10 @@ public class TraversalDemo {
     /**
      * Miss-using an evaluator to log out the path being evaluated.
      */
-    private static class LoggingEvaluators implements PathEvaluator<String> {
+    private static class LoggingEvaluators implements PathEvaluator<List<String>> {
 
         @Override
-        public Evaluation evaluate(Path path, BranchState<String>branchState) {
+        public Evaluation evaluate(Path path, BranchState<List<String>>branchState) {
             PathLogger.logPath(path, "eva", branchState);
             return Evaluation.EXCLUDE_AND_CONTINUE;
         }
