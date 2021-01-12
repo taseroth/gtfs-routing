@@ -24,7 +24,7 @@ public class TraversalDemo {
             final TraversalDescription traverseDescription = db.beginTx().traversalDescription()
                     .uniqueness(NODE_GLOBAL)
                     .depthFirst()
-                    .expand(new AllExpander())
+                    .expand(new AllExpander(), new InitialBranchState.State<>("start", "start"))
                     .evaluator(Evaluators.includeIfAcceptedByAny(new LoggingEvaluators(), new GreenEvaluator(minimumGreen)))
                     //.evaluator(new GreenEvaluator(minimumGreen))
                     ;
@@ -39,7 +39,7 @@ public class TraversalDemo {
     }
 
 
-    public static class GreenEvaluator implements Evaluator {
+    public static class GreenEvaluator implements PathEvaluator<String> {
 
         private final long minimumGreen;
         private long greenFound = 0;
@@ -49,7 +49,7 @@ public class TraversalDemo {
         }
 
         @Override
-        public Evaluation evaluate(Path path) {
+        public Evaluation evaluate(Path path, BranchState<String> branchState) {
 
             if (path.endNode().hasLabel(Label.label("Green"))) {
                 greenFound++;
@@ -68,28 +68,34 @@ public class TraversalDemo {
         private boolean enoughGreenFound() {
             return greenFound > minimumGreen;
         }
-    }
-
-    public static class AllExpander implements PathExpander<Integer> {
 
         @Override
-        public Iterable<Relationship> expand(Path path, BranchState<Integer> state) {
-            PathLogger.logPath(path, "exp");
+        public Evaluation evaluate(Path path) {
+            return null;
+        }
+    }
+
+    public static class AllExpander implements PathExpander<String> {
+
+        @Override
+        public Iterable<Relationship> expand(Path path, BranchState<String> branchState) {
+            PathLogger.logPath(path, "exp", branchState);
             // expand along all relationships
             // there is a ALLExpander provided, this is here to show the interface
+            branchState.setState((String)path.endNode().getProperty("name"));
             return path.endNode().getRelationships(Direction.OUTGOING);
         }
 
         @Override
-        public PathExpander<Integer> reverse() {
+        public PathExpander<String> reverse() {
             return null;
         }
     }
 
     public static class PathLogger {
 
-        public static void logPath(Path path, String scope) {
-            System.out.print(scope + "\t: ");
+        public static void logPath(Path path, String scope, BranchState<String> branchState) {
+            System.out.print(scope + "\t: " + branchState.getState() + " \t:");
             path.forEach(entry -> {
                 if (entry instanceof Node) {
                     System.out.printf("(%s)", entry.getProperty("name"));
@@ -104,12 +110,17 @@ public class TraversalDemo {
     /**
      * Miss-using an evaluator to log out the path being evaluated.
      */
-    private static class LoggingEvaluators implements Evaluator {
+    private static class LoggingEvaluators implements PathEvaluator<String> {
+
+        @Override
+        public Evaluation evaluate(Path path, BranchState<String>branchState) {
+            PathLogger.logPath(path, "eva", branchState);
+            return Evaluation.EXCLUDE_AND_CONTINUE;
+        }
 
         @Override
         public Evaluation evaluate(Path path) {
-            PathLogger.logPath(path, "eva");
-            return Evaluation.EXCLUDE_AND_CONTINUE;
+            return null;
         }
     }
 
