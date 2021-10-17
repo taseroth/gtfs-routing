@@ -1,8 +1,7 @@
-package org.faboo.example.routing.expander;
+package org.faboo.example.routing;
 
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.Path;
-import org.neo4j.values.storable.DurationValue;
 
 import java.time.DayOfWeek;
 import java.time.LocalDateTime;
@@ -11,17 +10,18 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 
-
-public class TraversalState {
+/**
+ * Keeps data that is independent of a specific branch during expansion / evaluation.
+ */
+public class JourneyConfig {
 
     private final LocalDateTime startTime;
     private final DayOfWeek startDay;
     private final Node destination;
-    private DurationValue lastArrivalTime;
     private long evaluationCount;
     private final List<Path> pathsFound;
 
-    public TraversalState(LocalDateTime startTime,  Node destination) {
+    public JourneyConfig(LocalDateTime startTime, Node destination) {
         this.startTime = startTime;
         this.startDay = startTime.getDayOfWeek();
         this.destination = destination;
@@ -39,14 +39,6 @@ public class TraversalState {
 
     public Node getDestination() {
         return destination;
-    }
-
-    public DurationValue getLastArrivalTime() {
-        return lastArrivalTime;
-    }
-
-    public void setLastArrivalTime(DurationValue lastArrivalTime) {
-        this.lastArrivalTime = lastArrivalTime;
     }
 
     public void registerPath(Path path) {
@@ -67,8 +59,7 @@ public class TraversalState {
     @Override
     public String toString() {
         return "TraversalState{" +
-                "lastArrivalTime=" + lastArrivalTime +
-                ", evaluationCount=" + evaluationCount +
+                "evaluationCount=" + evaluationCount +
                 ", pathsFound=" + pathsFound.size() +
                 '}';
     }

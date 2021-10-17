@@ -2,14 +2,14 @@ package org.faboo.example.routing;
 
 import org.faboo.example.routing.evaluator.DestinationEvaluator;
 import org.faboo.example.routing.expander.JourneyExpander;
-import org.faboo.example.routing.expander.TraversalState;
 import org.faboo.example.routing.expander.filter.DepartureTimeFilter;
+import org.faboo.example.routing.expander.filter.DoubleBackFilter;
 import org.faboo.example.routing.expander.filter.RunsOnFilter;
 import org.faboo.example.routing.expander.filter.StopsAtFilter;
-import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.Path;
 import org.neo4j.graphdb.Result;
+import org.neo4j.graphdb.Transaction;
 import org.neo4j.graphdb.traversal.InitialBranchState;
 import org.neo4j.graphdb.traversal.TraversalDescription;
 import org.neo4j.graphdb.traversal.Traverser;
@@ -29,7 +29,7 @@ import static org.neo4j.graphdb.traversal.Uniqueness.NODE_GLOBAL;
 public class JourneyProcedure {
 
     @Context
-    public GraphDatabaseService db;
+    public Transaction tx;
 
     @Context
     public Log log;
@@ -46,18 +46,20 @@ public class JourneyProcedure {
 
             final Node destinationStop =findDestinationNode(destinationId);
 
-            final TraversalState initialState = new TraversalState(startTime, destinationStop);
+            final JourneyConfig journeyConfig = new JourneyConfig(startTime, destinationStop);
+            final JourneyBranchState branchState = new JourneyBranchState();
 
-            final JourneyExpander expander = new JourneyExpander(log, buildFilters());
-            DestinationEvaluator evaluator = new DestinationEvaluator(initialState, log);
-            final TraversalDescription traverseDescription = db.beginTx().traversalDescription()
+            final JourneyExpander expander = new JourneyExpander(log, buildFilters(journeyConfig));
+            DestinationEvaluator evaluator = new DestinationEvaluator(journeyConfig, log);
+            final TraversalDescription traverseDescription = tx.traversalDescription()
                     .uniqueness(NODE_GLOBAL)
                     .depthFirst()
-                    .expand(expander, new InitialBranchState.State<>(initialState, initialState))
+                    .expand(expander, new InitialBranchState.State<>(branchState, branchState))
                     .evaluator(evaluator)
                     ;
 
             log.info("starting with %d starting nodes", startNodes.size());
+            System.out.printf("starting with %d starting nodes%n", startNodes.size());
 
             final Traverser traverser = traverseDescription.traverse(startNodes);
 
@@ -65,30 +67,32 @@ public class JourneyProcedure {
                     .stream(traverser.spliterator(), false)
                     .map(PathWrapper::new);
 
-            log.info("performed evaluations:" + initialState.getEvaluationCount());
-            initialState.getPathsFound().forEach(p -> log.info(p.toString()));
-            return stream;
+            final List<PathWrapper> list = stream.collect(Collectors.toList());
+            System.out.println("performed evaluations:" + journeyConfig.getEvaluationCount());
+            journeyConfig.getPathsFound().forEach(p -> log.info("path: %s", p));
+            return list.stream();
         } catch (NullPointerException e) {
             log.error("error during traversal", e);
         }
         return null;
     }
 
-    private ArrayList<StopsAtFilter> buildFilters() {
+    private ArrayList<StopsAtFilter> buildFilters(JourneyConfig journeyConfig) {
 
         ArrayList<StopsAtFilter> filters = new ArrayList<>();
-        filters.add(new RunsOnFilter(log));
+        filters.add(new DoubleBackFilter(log));
+        filters.add(new RunsOnFilter(log, journeyConfig));
         filters.add(new DepartureTimeFilter(log));
         return filters;
     }
 
     private List<Node> findStartNodes(String startId, LocalDateTime startTime) {
 
-        final Result result = db.beginTx().execute(
-                "match (s:Stop)<-[:STOPS_AT]-(st)-[:BELONGS_TO]->(t)" +
-                "where s.id = $startId and 'RUNS_' + $dt.dayOfWeek in  labels(t) " +
-                "and st.departureOffset.minutes > duration({hours:$dt.hour, minutes:$dt.minute}).minutes\n" +
-                "return st order by st.departureOffset asc limit 20",
+        final Result result = tx.execute(
+                "match (s:Stop)<-[:STOPS_AT]-(st)-[:BELONGS_TO]->(t)-[:USES]->(r) " +
+                " where s.id = $startId and 'RUNS_' + $dt.dayOfWeek in  labels(r) " +
+                " and st.departureOffset.minutes > duration({hours:$dt.hour, minutes:$dt.minute}).minutes " +
+                " return st order by st.departureOffset asc limit 20",
                 Map.of(
                         "startId", startId,
                         "dt", startTime));
@@ -99,7 +103,7 @@ public class JourneyProcedure {
     }
 
     private Node findDestinationNode(String destinationId) {
-        return db.beginTx().findNode(Consts.LABEL_STOP, "id", destinationId);
+        return tx.findNode(Consts.LABEL_STOP, "id", destinationId);
     }
 
     public static class PathWrapper {
